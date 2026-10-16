@@ -2,6 +2,8 @@
 
 一个 SeaTunnel (2.3.x) 事件处理器插件, 支持 **动态订阅所有 SeaTunnel 事件**, 并 **动态选择接收方式** (钉钉 / 企业微信 / 飞书 / 邮箱)。
 
+[![LICENSE](https://img.shields.io/badge/license-Anti%20996-blue.svg)](https://github.com/996icu/996.ICU/blob/master/LICENSE)
+
 ## 特性
 
 - **动态订阅事件**: 通过配置文件控制要监听的事件类别
