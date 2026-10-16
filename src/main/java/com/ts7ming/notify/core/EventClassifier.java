@@ -47,6 +47,16 @@ public final class EventClassifier {
             return false;
         }
         switch (t.name()) {
+            // SeaTunnel 2.3.x / 3.x 的实际枚举命名 (LIFECYCLE_ 前缀)
+            case "LIFECYCLE_ENUMERATOR_OPEN":
+            case "LIFECYCLE_ENUMERATOR_CLOSE":
+            case "LIFECYCLE_READER_OPEN":
+            case "LIFECYCLE_READER_CLOSE":
+            case "LIFECYCLE_WRITER_OPEN":
+            case "LIFECYCLE_WRITER_CLOSE":
+            case "LIFECYCLE_SPLIT_READER_OPEN":
+            case "LIFECYCLE_SPLIT_READER_CLOSE":
+            // 兼容无前缀的历史/自定义命名
             case "READER_OPEN":
             case "READER_CLOSE":
             case "WRITER_OPEN":
