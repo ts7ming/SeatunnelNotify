@@ -59,6 +59,38 @@ channels:
     ssl: true
 ```
 
+## 消息模板
+
+每种事件分类都可在 `config.yaml` 里自定义 `title` / `content` 模板(不填则用内置默认文案)。模板支持以下占位符(区分大小写):
+
+| 占位符 | 含义 |
+| --- | --- |
+| `{event_type}` | 事件类型, 如 `JOB_STATUS` / `SCHEMA_CHANGE` / `READER_OPEN` |
+| `{time}` | 事件时间 |
+| `{job_id}` | 任务ID |
+| `{job_name}` | 任务名称 |
+| `{job_status}` | 任务状态, 如 `FAILED` / `FINISHED` / `CANCELED` |
+| `{table}` | 表名 |
+| `{raw}` | 原始事件 `toString` |
+
+示例(自定义「任务失败」标题与多行内容):
+
+```yaml
+events:
+  job_status:
+    enabled: true
+    statuses: [FAILED]
+    title: "【任务{job_status}】{job_name}"
+    content: |
+      事件类型: {event_type}
+      任务ID: {job_id}
+      任务名称: {job_name}
+      状态: {job_status}
+      时间: {time}
+```
+
+> 提示: 模板值若以 `{` 开头需用引号包裹, 多行内容推荐用 YAML 块标量 `|`。修改后立即生效, 无需重启。
+
 ## 构建
 
 ```bash
