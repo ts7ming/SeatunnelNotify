@@ -75,8 +75,9 @@ public final class HttpUtil {
 
     /**
      * 判断机器人 webhook 是否真正发送成功。
-     * 钉钉/企业微信/飞书即便业务失败也返回 HTTP 200, 真正成败在响应体的 errcode:
-     * 仅当 HTTP 200 且 errcode == 0 才算成功; 无 errcode 字段时回退为信任状态码。
+     * 钉钉/企业微信/飞书即便业务失败也返回 HTTP 200, 真正成败在响应体的错误码:
+     * 钉钉/企微用 errcode, 飞书用 code/StatusCode。
+     * 仅当 HTTP 200 且错误码 == 0 (或无错误码字段) 才算成功。
      */
     public static boolean isWebhookSuccess(int code, String body) {
         if (code != 200) {
@@ -85,18 +86,24 @@ public final class HttpUtil {
         if (body == null || body.trim().isEmpty()) {
             return true;
         }
-        Matcher m = ERRCODE_PATTERN.matcher(body);
-        if (m.find()) {
-            try {
-                return Integer.parseInt(m.group(1)) == 0;
-            } catch (NumberFormatException e) {
-                return false;
+        for (Pattern p : ERROR_CODE_PATTERNS) {
+            Matcher m = p.matcher(body);
+            if (m.find()) {
+                try {
+                    return Integer.parseInt(m.group(1)) == 0;
+                } catch (NumberFormatException e) {
+                    return false;
+                }
             }
         }
         return true;
     }
 
-    private static final Pattern ERRCODE_PATTERN = Pattern.compile("\"errcode\"\\s*:\\s*(-?\\d+)");
+    private static final Pattern[] ERROR_CODE_PATTERNS = new Pattern[] {
+            Pattern.compile("\"errcode\"\\s*:\\s*(-?\\d+)"),
+            Pattern.compile("\"code\"\\s*:\\s*(-?\\d+)"),
+            Pattern.compile("\"StatusCode\"\\s*:\\s*(-?\\d+)")
+    };
 
     /**
      * 转义 JSON 字符串中的特殊字符。

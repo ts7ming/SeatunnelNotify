@@ -25,4 +25,21 @@ public final class SignUtil {
         byte[] raw = mac.doFinal(data.getBytes(StandardCharsets.UTF_8));
         return Base64.getEncoder().encodeToString(raw);
     }
+
+    /**
+     * 飞书自定义机器人加签。
+     *
+     * <p>与钉钉不同: {@code string_to_sign = timestamp + "\n" + secret}, 以 string_to_sign 作为
+     * HmacSHA256 的 <b>key</b>, 对<b>空消息体</b>计算后 Base64。
+     *
+     * @param timestamp 秒级时间戳
+     * @param secret    签名校验密钥
+     */
+    public static String feishuSign(long timestamp, String secret) throws Exception {
+        String stringToSign = timestamp + "\n" + secret;
+        Mac mac = Mac.getInstance("HmacSHA256");
+        mac.init(new SecretKeySpec(stringToSign.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+        byte[] raw = mac.doFinal(new byte[0]);
+        return Base64.getEncoder().encodeToString(raw);
+    }
 }
