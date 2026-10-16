@@ -60,6 +60,13 @@
             <version>4.13.2</version>
             <scope>test</scope>
         </dependency>
+        <!-- 本地测试入口的日志实现(仅 test 作用域; 生产由 SeaTunnel 自身提供) -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+            <version>1.7.36</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
@@ -73,6 +80,18 @@
                     <source>8</source>
                     <target>8</target>
                     <encoding>UTF-8</encoding>
+                </configuration>
+            </plugin>
+
+            <!-- 本地测试入口: mvn exec:java 运行 NotifyTestMain -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.1.0</version>
+                <configuration>
+                    <mainClass>com.ts7ming.notify.NotifyTestMain</mainClass>
+                    <!-- test 作用域会包含 provided 依赖(seatunnel-api 及其传递的 slf4j), 本地运行测试时才不缺类 -->
+                    <classpathScope>test</classpathScope>
                 </configuration>
             </plugin>
 

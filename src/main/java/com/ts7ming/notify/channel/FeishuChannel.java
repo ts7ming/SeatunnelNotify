@@ -49,8 +49,8 @@ public class FeishuChannel implements NotifyChannel {
             }
         }
         String text = msg.getTitle() + "\n" + msg.getContent();
-        String json = "{\"msg_type\":\"text\",\"content\":{\"text\":"
-                + HttpUtil.escapeJson(text) + "}}";
+        String json = "{\"msg_type\":\"text\",\"content\":{\"text\":\""
+                + HttpUtil.escapeJson(text) + "\"}}";
         try {
             int code = HttpUtil.postJson(url, json, 5000);
             if (code == 200) {

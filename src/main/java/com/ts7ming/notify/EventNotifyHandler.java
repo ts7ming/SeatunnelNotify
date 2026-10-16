@@ -49,7 +49,7 @@ public class EventNotifyHandler implements EventHandler {
             if (!cfg.shouldNotify(ctx)) {
                 return;
             }
-            NotifyMessage msg = MessageBuilder.build(ctx);
+            NotifyMessage msg = MessageBuilder.build(ctx, cfg);
             List<NotifyChannel> channels = ChannelManager.build(cfg);
             if (channels.isEmpty()) {
                 log.warn("配置已启用但未启用任何通知渠道, 事件: {}", ctx.getEventTypeName());

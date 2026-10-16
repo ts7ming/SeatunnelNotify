@@ -5,7 +5,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.io.FileWriter;
 import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -17,9 +16,6 @@ public final class DefaultConfig {
 
     private static final Logger log = LoggerFactory.getLogger(DefaultConfig.class);
 
-    private DefaultConfig() {
-    }
-
     public static final String CONTENT =
             "# ============================================================\n" +
             "# SeaTunnel 事件通知 配置文件\n" +
@@ -30,6 +26,16 @@ public final class DefaultConfig {
             "# 总开关\n" +
             "enabled: true\n" +
             "\n" +
+            "# 消息模板占位符 (title/content 中可用, 区分大小写):\n" +
+            "#   {event_type}  事件类型, 如 JOB_STATUS / SCHEMA_CHANGE / READER_OPEN\n" +
+            "#   {time}        事件时间\n" +
+            "#   {job_id}      任务ID\n" +
+            "#   {job_name}    任务名称\n" +
+            "#   {job_status}  任务状态, 如 FAILED / FINISHED / CANCELED\n" +
+            "#   {table}       表名\n" +
+            "#   {raw}         原始事件 toString\n" +
+            "# 每个事件分类都可选配 title/content 模板; 不填则使用内置默认文案。\n" +
+            "\n" +
             "# 事件订阅 (动态订阅, 按需开启)\n" +
             "events:\n" +
             "  # 任务状态事件 (成功/失败/取消等)\n" +
@@ -38,15 +44,38 @@ public final class DefaultConfig {
             "    # 仅在这些状态下通知, 留空表示全部状态\n" +
             "    # 可选值: CREATED, RUNNING, FINISHED, FAILED, CANCELED, FAILING, CANCELLING ...\n" +
             "    statuses: [FAILED, FINISHED, CANCELED]\n" +
+            "    # 自定义标题/内容模板 (可选, 取消注释并修改即生效):\n" +
+            "    # title: \"【任务{job_status}】\"\n" +
+            "    # content: |\n" +
+            "    #   事件类型: {event_type}\n" +
+            "    #   任务ID: {job_id}\n" +
+            "    #   任务名称: {job_name}\n" +
+            "    #   状态: {job_status}\n" +
+            "    #   时间: {time}\n" +
             "  # 表结构变更事件 (加列/删列/改列/改表等)\n" +
             "  schema_change:\n" +
             "    enabled: true\n" +
+            "    # title: \"【表结构变更】\"\n" +
+            "    # content: |\n" +
+            "    #   事件类型: {event_type}\n" +
+            "    #   表: {table}\n" +
+            "    #   时间: {time}\n" +
             "  # 读写生命周期事件 (READER_OPEN/CLOSE, WRITER_OPEN/CLOSE ...)\n" +
             "  lifecycle:\n" +
             "    enabled: false\n" +
+            "    # title: \"【读写生命周期】\"\n" +
+            "    # content: |\n" +
+            "    #   事件类型: {event_type}\n" +
+            "    #   表: {table}\n" +
+            "    #   时间: {time}\n" +
             "  # 其他未归类事件\n" +
             "  others:\n" +
             "    enabled: false\n" +
+            "    # title: \"【其他事件】\"\n" +
+            "    # content: |\n" +
+            "    #   事件类型: {event_type}\n" +
+            "    #   时间: {time}\n" +
+            "    #   详情: {raw}\n" +
             "\n" +
             "# 通知渠道 (可同时开启多个, 动态选择接收方式)\n" +
             "channels:\n" +
@@ -87,7 +116,7 @@ public final class DefaultConfig {
         if (file.exists()) {
             return;
         }
-        try (Writer w = new FileWriter(file, StandardCharsets.UTF_8)) {
+        try (Writer w = Files.newBufferedWriter(file.toPath(), StandardCharsets.UTF_8)) {
             w.write(CONTENT);
             w.flush();
         }

@@ -32,8 +32,8 @@ public class WeChatChannel implements NotifyChannel {
             return;
         }
         String text = msg.getTitle() + "\n" + msg.getContent();
-        String json = "{\"msgtype\":\"text\",\"text\":{\"content\":"
-                + HttpUtil.escapeJson(text) + "}}";
+        String json = "{\"msgtype\":\"text\",\"text\":{\"content\":\""
+                + HttpUtil.escapeJson(text) + "\"}}";
         try {
             int code = HttpUtil.postJson(webhook, json, 5000);
             if (code == 200) {

@@ -11,5 +11,19 @@ public enum EventCategory {
     /** 读写生命周期事件 (READER/WRITER OPEN/CLOSE) */
     LIFECYCLE,
     /** 其他未归类事件 */
-    OTHER
+    OTHER;
+
+    /** 对应的配置键名 (events 下的 key) */
+    public String configKey() {
+        switch (this) {
+            case JOB:
+                return "job_status";
+            case SCHEMA:
+                return "schema_change";
+            case LIFECYCLE:
+                return "lifecycle";
+            default:
+                return "others";
+        }
+    }
 }

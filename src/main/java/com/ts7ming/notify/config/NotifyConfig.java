@@ -11,7 +11,7 @@ import java.util.Map;
 
 /**
  * 通知配置模型, 由 YAML 解析而来。
- * 支持动态订阅事件、动态选择通知渠道。
+ * 支持动态订阅事件、动态选择通知渠道、按事件类型自定义消息模板。
  */
 public class NotifyConfig {
 
@@ -19,13 +19,39 @@ public class NotifyConfig {
     private EventSubscribe events = new EventSubscribe();
     private Map<String, ChannelConfig> channels = new HashMap<>();
 
-    /** 事件订阅配置 */
+    /** 事件订阅配置 (按 job_status/schema_change/lifecycle/others 分类) */
     public static class EventSubscribe {
-        public boolean jobStatus = true;
-        public List<String> jobStatuses = new ArrayList<>();
-        public boolean schemaChange = true;
-        public boolean lifecycle = false;
-        public boolean others = false;
+        public Map<String, EventRule> rules = defaultRules();
+
+        public EventRule rule(String key) {
+            return rules.get(key);
+        }
+
+        private static Map<String, EventRule> defaultRules() {
+            Map<String, EventRule> m = new HashMap<>();
+            m.put(EventCategory.JOB.configKey(), new EventRule(true));
+            m.put(EventCategory.SCHEMA.configKey(), new EventRule(true));
+            m.put(EventCategory.LIFECYCLE.configKey(), new EventRule(false));
+            m.put(EventCategory.OTHER.configKey(), new EventRule(false));
+            return m;
+        }
+    }
+
+    /** 单个事件分类规则: 开关 + 状态过滤 + 自定义消息模板 */
+    public static class EventRule {
+        public boolean enabled;
+        public List<String> statuses = new ArrayList<>();
+        /** 可选标题模板, 为空则用内置默认文案 */
+        public String title;
+        /** 可选内容模板, 为空则用内置默认文案 */
+        public String content;
+
+        public EventRule() {
+        }
+
+        public EventRule(boolean enabled) {
+            this.enabled = enabled;
+        }
     }
 
     /** 单个渠道配置 (所有字段放在 props 中, 由各渠道自行读取, 实现动态扩展) */
@@ -105,38 +131,29 @@ public class NotifyConfig {
         if (ctx == null) {
             return false;
         }
-        EventSubscribe e = events;
-        switch (ctx.getCategory()) {
-            case JOB:
-                if (!e.jobStatus) {
+        EventRule r = events.rule(ctx.getCategory().configKey());
+        if (r == null || !r.enabled) {
+            return false;
+        }
+        if (ctx.getCategory() == EventCategory.JOB) {
+            if (r.statuses != null && !r.statuses.isEmpty()) {
+                String st = ctx.getJobStatus();
+                if (st == null) {
                     return false;
                 }
-                if (e.jobStatuses != null && !e.jobStatuses.isEmpty()) {
-                    String st = ctx.getJobStatus();
-                    if (st == null) {
-                        return false;
-                    }
-                    boolean matched = false;
-                    for (String s : e.jobStatuses) {
-                        if (s != null && s.equalsIgnoreCase(st)) {
-                            matched = true;
-                            break;
-                        }
-                    }
-                    if (!matched) {
-                        return false;
+                boolean matched = false;
+                for (String s : r.statuses) {
+                    if (s != null && s.equalsIgnoreCase(st)) {
+                        matched = true;
+                        break;
                     }
                 }
-                return true;
-            case SCHEMA:
-                return e.schemaChange;
-            case LIFECYCLE:
-                return e.lifecycle;
-            case OTHER:
-                return e.others;
-            default:
-                return false;
+                if (!matched) {
+                    return false;
+                }
+            }
         }
+        return true;
     }
 
     /** 解析 YAML 字节内容 */
@@ -174,24 +191,31 @@ public class NotifyConfig {
     @SuppressWarnings("unchecked")
     private static void parseEvents(NotifyConfig cfg, Map<String, Object> ev) {
         EventSubscribe e = cfg.events;
-
-        Object js = ev.get("job_status");
-        if (js instanceof Map) {
-            Map<String, Object> j = (Map<String, Object>) js;
-            e.jobStatus = asBool(j.get("enabled"), true);
-            e.jobStatuses = asStringList(j.get("statuses"));
-        }
-        Object sc = ev.get("schema_change");
-        if (sc instanceof Map) {
-            e.schemaChange = asBool(((Map<String, Object>) sc).get("enabled"), true);
-        }
-        Object lc = ev.get("lifecycle");
-        if (lc instanceof Map) {
-            e.lifecycle = asBool(((Map<String, Object>) lc).get("enabled"), false);
-        }
-        Object ot = ev.get("others");
-        if (ot instanceof Map) {
-            e.others = asBool(((Map<String, Object>) ot).get("enabled"), false);
+        for (Map.Entry<String, Object> en : ev.entrySet()) {
+            Object v = en.getValue();
+            if (!(v instanceof Map)) {
+                continue;
+            }
+            Map<String, Object> m = (Map<String, Object>) v;
+            String key = en.getKey();
+            EventRule rule = e.rules.get(key);
+            if (rule == null) {
+                // 未知键: 新建并默认开启 (仅供将来扩展, 目前 shouldNotify 只识别四个已知键)
+                rule = new EventRule(true);
+                e.rules.put(key, rule);
+            }
+            if (m.containsKey("enabled")) {
+                rule.enabled = asBool(m.get("enabled"), rule.enabled);
+            }
+            if (m.containsKey("statuses")) {
+                rule.statuses = asStringList(m.get("statuses"));
+            }
+            if (m.containsKey("title")) {
+                rule.title = asString(m.get("title"));
+            }
+            if (m.containsKey("content")) {
+                rule.content = asString(m.get("content"));
+            }
         }
     }
 
@@ -219,6 +243,10 @@ public class NotifyConfig {
             return Boolean.parseBoolean(o.toString().trim());
         }
         return def;
+    }
+
+    private static String asString(Object o) {
+        return o == null ? null : String.valueOf(o);
     }
 
     private static List<String> asStringList(Object o) {
