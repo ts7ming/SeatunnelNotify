@@ -2,15 +2,17 @@ package com.ts7ming.notify.config;
 
 import com.ts7ming.notify.model.EventCategory;
 import com.ts7ming.notify.model.EventContext;
-import org.yaml.snakeyaml.Yaml;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
 /**
- * 通知配置模型, 由 YAML 解析而来。
+ * 通知配置模型, 由 JSON 解析而来。
  * 支持动态订阅事件、动态选择通知渠道、按事件类型自定义消息模板。
  */
 public class NotifyConfig {
@@ -156,29 +158,33 @@ public class NotifyConfig {
         return true;
     }
 
-    /** 解析 YAML 字节内容 */
-    @SuppressWarnings("unchecked")
-    public static NotifyConfig fromYaml(byte[] bytes) {
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+
+    /** 解析 JSON 字节内容 */
+    public static NotifyConfig fromJson(byte[] bytes) {
         NotifyConfig cfg = new NotifyConfig();
         if (bytes == null || bytes.length == 0) {
             return cfg;
         }
         try {
-            Yaml yaml = new Yaml();
-            Object root = yaml.load(new String(bytes, java.nio.charset.StandardCharsets.UTF_8));
-            if (!(root instanceof Map)) {
+            String text = new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
+            // 兼容 Windows 记事本等工具保存的 UTF-8 BOM
+            if (text.startsWith("\uFEFF")) {
+                text = text.substring(1);
+            }
+            JsonNode root = MAPPER.readTree(text);
+            if (root == null || !root.isObject()) {
                 return cfg;
             }
-            Map<String, Object> m = (Map<String, Object>) root;
-            cfg.enabled = asBool(m.get("enabled"), false);
+            cfg.enabled = asBool(root.get("enabled"), false);
 
-            Object ev = m.get("events");
-            if (ev instanceof Map) {
-                parseEvents(cfg, (Map<String, Object>) ev);
+            JsonNode ev = root.get("events");
+            if (ev != null && ev.isObject()) {
+                parseEvents(cfg, ev);
             }
-            Object ch = m.get("channels");
-            if (ch instanceof Map) {
-                parseChannels(cfg, (Map<String, Object>) ch);
+            JsonNode ch = root.get("channels");
+            if (ch != null && ch.isObject()) {
+                parseChannels(cfg, ch);
             }
         } catch (Exception e) {
             org.slf4j.LoggerFactory.getLogger(NotifyConfig.class)
@@ -188,15 +194,15 @@ public class NotifyConfig {
         return cfg;
     }
 
-    @SuppressWarnings("unchecked")
-    private static void parseEvents(NotifyConfig cfg, Map<String, Object> ev) {
+    private static void parseEvents(NotifyConfig cfg, JsonNode ev) {
         EventSubscribe e = cfg.events;
-        for (Map.Entry<String, Object> en : ev.entrySet()) {
-            Object v = en.getValue();
-            if (!(v instanceof Map)) {
+        Iterator<Map.Entry<String, JsonNode>> it = ev.fields();
+        while (it.hasNext()) {
+            Map.Entry<String, JsonNode> en = it.next();
+            JsonNode m = en.getValue();
+            if (m == null || !m.isObject()) {
                 continue;
             }
-            Map<String, Object> m = (Map<String, Object>) v;
             String key = en.getKey();
             EventRule rule = e.rules.get(key);
             if (rule == null) {
@@ -204,61 +210,96 @@ public class NotifyConfig {
                 rule = new EventRule(true);
                 e.rules.put(key, rule);
             }
-            if (m.containsKey("enabled")) {
+            if (m.has("enabled")) {
                 rule.enabled = asBool(m.get("enabled"), rule.enabled);
             }
-            if (m.containsKey("statuses")) {
+            if (m.has("statuses")) {
                 rule.statuses = asStringList(m.get("statuses"));
             }
-            if (m.containsKey("title")) {
+            if (m.has("title")) {
                 rule.title = asString(m.get("title"));
             }
-            if (m.containsKey("content")) {
+            if (m.has("content")) {
                 rule.content = asString(m.get("content"));
             }
         }
     }
 
-    @SuppressWarnings("unchecked")
-    private static void parseChannels(NotifyConfig cfg, Map<String, Object> ch) {
-        for (Map.Entry<String, Object> en : ch.entrySet()) {
-            Object v = en.getValue();
-            if (!(v instanceof Map)) {
+    private static void parseChannels(NotifyConfig cfg, JsonNode ch) {
+        Iterator<Map.Entry<String, JsonNode>> it = ch.fields();
+        while (it.hasNext()) {
+            Map.Entry<String, JsonNode> en = it.next();
+            JsonNode cm = en.getValue();
+            if (cm == null || !cm.isObject()) {
                 continue;
             }
-            Map<String, Object> cm = (Map<String, Object>) v;
             ChannelConfig cc = new ChannelConfig();
             cc.enabled = asBool(cm.get("enabled"), false);
             // 复制全部键值, 渠道按需读取 (enabled/type 等也是其中的普通键)
-            cc.props = new HashMap<>(cm);
+            cc.props = new HashMap<>();
+            Iterator<Map.Entry<String, JsonNode>> fit = cm.fields();
+            while (fit.hasNext()) {
+                Map.Entry<String, JsonNode> fe = fit.next();
+                cc.props.put(fe.getKey(), jsonToPlain(fe.getValue()));
+            }
             cfg.channels.put(en.getKey(), cc);
         }
     }
 
-    private static boolean asBool(Object o, boolean def) {
-        if (o instanceof Boolean) {
-            return (Boolean) o;
+    /** JsonNode 转为普通 Java 对象, 供 ChannelConfig 的 getString/getInt/getBool/getList 使用。 */
+    private static Object jsonToPlain(JsonNode node) {
+        if (node == null || node.isNull()) {
+            return null;
         }
-        if (o != null) {
-            return Boolean.parseBoolean(o.toString().trim());
+        if (node.isBoolean()) {
+            return node.booleanValue();
+        }
+        if (node.isNumber()) {
+            return node.numberValue();
+        }
+        if (node.isTextual()) {
+            return node.textValue();
+        }
+        if (node.isArray()) {
+            List<Object> list = new ArrayList<>();
+            for (JsonNode x : node) {
+                list.add(jsonToPlain(x));
+            }
+            return list;
+        }
+        return node.toString();
+    }
+
+    private static boolean asBool(JsonNode o, boolean def) {
+        if (o != null && o.isBoolean()) {
+            return o.booleanValue();
+        }
+        if (o != null && !o.isNull()) {
+            return Boolean.parseBoolean(o.asText().trim());
         }
         return def;
     }
 
-    private static String asString(Object o) {
-        return o == null ? null : String.valueOf(o);
+    private static String asString(JsonNode o) {
+        if (o == null || o.isNull()) {
+            return null;
+        }
+        return o.asText();
     }
 
-    private static List<String> asStringList(Object o) {
+    private static List<String> asStringList(JsonNode o) {
         List<String> r = new ArrayList<>();
-        if (o instanceof List) {
-            for (Object x : (List<Object>) o) {
-                if (x != null && !x.toString().trim().isEmpty()) {
-                    r.add(x.toString().trim());
+        if (o == null || o.isNull()) {
+            return r;
+        }
+        if (o.isArray()) {
+            for (JsonNode x : o) {
+                if (x != null && !x.isNull() && !x.asText().trim().isEmpty()) {
+                    r.add(x.asText().trim());
                 }
             }
-        } else if (o != null) {
-            for (String s : o.toString().split(",")) {
+        } else {
+            for (String s : o.asText().split(",")) {
                 if (!s.trim().isEmpty()) {
                     r.add(s.trim());
                 }

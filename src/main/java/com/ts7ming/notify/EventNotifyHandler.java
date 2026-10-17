@@ -22,7 +22,7 @@ import java.util.List;
  * <ul>
  *   <li>动态订阅: 通过配置文件控制要监听的事件类别 (任务状态/表结构变更/生命周期/其他)。</li>
  *   <li>动态接收方式: 钉钉 / 企业微信 / 飞书 / 邮箱, 可任意组合开启。</li>
- *   <li>实时读取: 每次事件触发都会实时读取 {@code $SEATUNNEL_HOME/ext/config.yaml} (内容变化即重新解析)。</li>
+ *   <li>实时读取: 每次事件触发都会实时读取 {@code $SEATUNNEL_HOME/config/seatunnelnotify.json} (内容变化即重新解析)。</li>
  * </ul>
  */
 public class EventNotifyHandler implements EventHandler {

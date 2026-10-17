@@ -44,7 +44,7 @@ public final class ConfigLoader {
                 if (cachedConfig != null && cachedBytes != null && Arrays.equals(bytes, cachedBytes)) {
                     return cachedConfig;
                 }
-                NotifyConfig cfg = NotifyConfig.fromYaml(bytes);
+                NotifyConfig cfg = NotifyConfig.fromJson(bytes);
                 cachedBytes = bytes;
                 cachedConfig = cfg;
                 return cfg;

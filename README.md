@@ -16,54 +16,64 @@
 
 ## 配置文件
 
-默认路径: **`$SEATUNNEL_HOME/ext/config.yaml`**
+默认路径: **`$SEATUNNEL_HOME/config/seatunnelnotify.json`** (JSON 格式)
 
 - 若文件不存在, 插件首次触发事件时会自动创建默认配置文件 (含全部渠道模板)
 - 修改配置后**立即生效**, 无需重启
 
-参考模板见 `src/main/resources/config-template.yaml`。
+参考模板见 `src/main/resources/config-template.json`。
 
-```yaml
-enabled: true
-
-events:
-  job_status:
-    enabled: true
-    statuses: [FAILED, FINISHED, CANCELED]   # 留空表示全部状态
-  schema_change:
-    enabled: true
-  lifecycle:
-    enabled: false
-  others:
-    enabled: false
-
-channels:
-  dingtalk:
-    enabled: false
-    webhook: https://oapi.dingtalk.com/robot/send?access_token=YOUR_TOKEN
-    secret: YOUR_SECRET
-  wechat:
-    enabled: false
-    webhook: https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=YOUR_KEY
-  feishu:
-    enabled: false
-    webhook: https://open.feishu.cn/open-apis/bot/v2/hook/YOUR_HOOK
-    secret: YOUR_SECRET
-  email:
-    enabled: false
-    host: smtp.example.com
-    port: 465
-    username: user@example.com
-    password: your_password
-    from: user@example.com
-    to: [admin@example.com, ops@example.com]
-    subject: SeaTunnel 事件通知
-    ssl: true
+```json
+{
+  "enabled": true,
+  "events": {
+    "job_status": {
+      "enabled": true,
+      "statuses": ["FAILED", "FINISHED", "CANCELED"]
+    },
+    "schema_change": {
+      "enabled": true
+    },
+    "lifecycle": {
+      "enabled": false
+    },
+    "others": {
+      "enabled": false
+    }
+  },
+  "channels": {
+    "dingtalk": {
+      "enabled": false,
+      "webhook": "https://oapi.dingtalk.com/robot/send?access_token=YOUR_TOKEN",
+      "secret": "YOUR_SECRET"
+    },
+    "wechat": {
+      "enabled": false,
+      "webhook": "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=YOUR_KEY"
+    },
+    "feishu": {
+      "enabled": false,
+      "webhook": "https://open.feishu.cn/open-apis/bot/v2/hook/YOUR_HOOK",
+      "secret": "YOUR_SECRET"
+    },
+    "email": {
+      "enabled": false,
+      "host": "smtp.example.com",
+      "port": 465,
+      "username": "user@example.com",
+      "password": "your_password",
+      "from": "user@example.com",
+      "to": ["admin@example.com", "ops@example.com"],
+      "subject": "SeaTunnel 事件通知",
+      "ssl": true
+    }
+  }
+}
 ```
 
 ## 消息模板
 
-每种事件分类都可在 `config.yaml` 里自定义 `title` / `content` 模板(不填则用内置默认文案)。模板支持以下占位符(区分大小写):
+每种事件分类都可在 `seatunnelnotify.json` 里自定义 `title` / `content` 模板(不填则用内置默认文案)。模板支持以下占位符(区分大小写):
 
 | 占位符 | 含义 |
 | --- | --- |
@@ -77,21 +87,22 @@ channels:
 
 示例(自定义「任务失败」标题与多行内容):
 
-```yaml
-events:
-  job_status:
-    enabled: true
-    statuses: [FAILED]
-    title: "【任务{job_status}】{job_name}"
-    content: |
-      事件类型: {event_type}
-      任务ID: {job_id}
-      任务名称: {job_name}
-      状态: {job_status}
-      时间: {time}
+```json
+{
+  "events": {
+    "job_status": {
+      "enabled": true,
+      "statuses": ["FAILED"],
+      "title": "【任务{job_status}】{job_name}",
+      "content": "事件类型: {event_type}\n任务ID: {job_id}\n任务名称: {job_name}\n状态: {job_status}\n时间: {time}"
+    }
+  }
+}
 ```
 
-> 提示: 模板值若以 `{` 开头需用引号包裹, 多行内容推荐用 YAML 块标量 `|`。修改后立即生效, 无需重启。
+> 提示: `title` / `content` 为 JSON 字符串, 多行内容使用 `\n` 转义(解析后会变成真实换行)。修改后立即生效, 无需重启。
+>
+> `config-template.json` 已为四类事件预填了开箱即用的 `title` / `content` 示例模板, 可直接修改使用; 删掉某个字段即回退到该分类的内置默认文案。
 
 ## 构建
 
@@ -99,11 +110,11 @@ events:
 mvn clean package
 ```
 
-产物: `target/seatunnel-notify.jar` (已通过 shade 将 snakeyaml / javax.mail 等第三方依赖打包并 relocation, 插件自包含, 不会与 SeaTunnel 自带依赖冲突)。
+产物: `target/seatunnel-notify.jar` (已通过 shade 将 jackson / javax.mail 等第三方依赖打包并 relocation, 插件自包含, 不会与 SeaTunnel 自带依赖冲突)。
 
 ## 部署
 
-将 `seatunnel-notify.jar` 放入 SeaTunnel 的扩展目录 (例如 `$SEATUNNEL_HOME/ext/`), 并确保 `$SEATUNNEL_HOME/ext/config.yaml` 存在 (不存在会自动生成)。
+将 `seatunnel-notify.jar` 放入 SeaTunnel 的扩展目录 (例如 `$SEATUNNEL_HOME/ext/`), 并确保 `$SEATUNNEL_HOME/config/seatunnelnotify.json` 存在 (不存在会自动生成)。
 
 SeaTunnel 通过 SPI (`META-INF/services/org.apache.seatunnel.api.event.EventHandler`) 自动加载本插件, 无需额外配置。
 

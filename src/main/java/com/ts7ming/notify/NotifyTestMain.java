@@ -14,7 +14,7 @@ import java.util.List;
 /**
  * 本地测试入口 (不依赖 SeaTunnel 运行环境)。
  *
- * <p>直接读取 {@code ext/config.yaml}, 构造一条模拟的 "任务失败" 事件,
+ * <p>直接读取 {@code config/seatunnelnotify.json}, 构造一条模拟的 "任务失败" 事件,
  * 并把它发送到配置中所有已启用的通知渠道, 用于本地验证渠道配置是否正确。
  *
  * <p>运行方式:
@@ -35,7 +35,7 @@ public final class NotifyTestMain {
         NotifyConfig cfg = ConfigLoader.load();
         if (cfg == null || !cfg.isEnabled()) {
             System.out.println("[NotifyTest] 配置未启用(enabled=false)或加载失败, 退出。"
-                    + " 请在 ext/config.yaml 中开启 enabled 并配置渠道。");
+                    + " 请在 config/seatunnelnotify.json 中开启 enabled 并配置渠道。");
             return;
         }
 
@@ -53,7 +53,7 @@ public final class NotifyTestMain {
 
         if (channels.isEmpty()) {
             System.out.println("[NotifyTest] 未启用任何通知渠道, 退出。"
-                    + " 请在 ext/config.yaml 的 channels 下开启至少一个渠道并填写 webhook。");
+                    + " 请在 config/seatunnelnotify.json 的 channels 下开启至少一个渠道并填写 webhook。");
             return;
         }
 

@@ -5,13 +5,13 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 
 /**
- * 解析配置文件路径: {@code $SEATUNNEL_HOME/ext/config.yaml}
+ * 解析配置文件路径: {@code $SEATUNNEL_HOME/config/seatunnelnotify.json}
  * 当环境变量 / 系统属性 SEATUNNEL_HOME 不存在时, 回退到当前工作目录。
  */
 public final class ConfigPaths {
 
-    public static final String CONFIG_FILE_NAME = "config.yaml";
-    public static final String EXT_DIR = "ext";
+    public static final String CONFIG_DIR = "config";
+    public static final String CONFIG_FILE_NAME = "seatunnelnotify.json";
 
     private ConfigPaths() {
     }
@@ -24,7 +24,7 @@ public final class ConfigPaths {
         if (isBlank(home)) {
             home = ".";
         }
-        Path dir = Paths.get(home, EXT_DIR);
+        Path dir = Paths.get(home, CONFIG_DIR);
         return dir.resolve(CONFIG_FILE_NAME).toFile();
     }
 

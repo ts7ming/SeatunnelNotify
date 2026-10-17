@@ -1,0 +1,62 @@
+{
+  "_comment": "SeaTunnel 事件通知配置文件. 位置: $SEATUNNEL_HOME/config/seatunnelnotify.json. 每次事件触发时都会实时读取本文件(内容变化即重新解析), 修改保存后立即生效. 消息模板占位符(区分大小写): {event_type} {time} {job_id} {job_name} {job_status} {table} {raw}. 各事件分类已预填 title/content 示例模板(JSON 字符串, \\n 表示换行), 可按需修改; 删掉某个字段即回退到内置默认文案. 渠道可同时开启多个(钉钉/企业微信/飞书/邮箱).",
+  "enabled": true,
+  "events": {
+    "job_status": {
+      "_comment": "任务状态事件(成功/失败/取消等). statuses 仅在这些状态下通知, 留空表示全部状态; 可选值 CREATED, RUNNING, FINISHED, FAILED, CANCELED, FAILING, CANCELLING 等.",
+      "enabled": true,
+      "statuses": ["FAILED", "FINISHED", "CANCELED"],
+      "title": "【任务{job_status}】{job_name}",
+      "content": "事件类型: {event_type}\n任务ID: {job_id}\n任务名称: {job_name}\n状态: {job_status}\n时间: {time}"
+    },
+    "schema_change": {
+      "_comment": "表结构变更事件(加列/删列/改列/改表等).",
+      "enabled": true,
+      "title": "【表结构变更】{table}",
+      "content": "事件类型: {event_type}\n表: {table}\n时间: {time}\n详情: {raw}"
+    },
+    "lifecycle": {
+      "_comment": "读写生命周期事件(READER/WRITER/ENUMERATOR 的 OPEN/CLOSE).",
+      "enabled": false,
+      "title": "【读写生命周期】{event_type}",
+      "content": "事件类型: {event_type}\n表: {table}\n时间: {time}"
+    },
+    "others": {
+      "_comment": "其他未归类事件.",
+      "enabled": false,
+      "title": "【其他事件】{event_type}",
+      "content": "事件类型: {event_type}\n时间: {time}\n详情: {raw}"
+    }
+  },
+  "channels": {
+    "dingtalk": {
+      "_comment": "钉钉自定义机器人. secret 为加签密钥, 留空表示不使用加签.",
+      "enabled": false,
+      "webhook": "https://oapi.dingtalk.com/robot/send?access_token=YOUR_TOKEN",
+      "secret": "YOUR_SECRET"
+    },
+    "wechat": {
+      "_comment": "企业微信群机器人, 无需加签.",
+      "enabled": false,
+      "webhook": "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=YOUR_KEY"
+    },
+    "feishu": {
+      "_comment": "飞书自定义机器人. secret 为签名校验密钥(安全设置-签名校验), 留空表示不使用.",
+      "enabled": false,
+      "webhook": "https://open.feishu.cn/open-apis/bot/v2/hook/YOUR_HOOK",
+      "secret": "YOUR_SECRET"
+    },
+    "email": {
+      "_comment": "邮件通知. to 为收件人列表; ssl 为 true 走 SSL, 为 false 走 STARTTLS.",
+      "enabled": false,
+      "host": "smtp.example.com",
+      "port": 465,
+      "username": "user@example.com",
+      "password": "your_password",
+      "from": "user@example.com",
+      "to": ["admin@example.com", "ops@example.com"],
+      "subject": "SeaTunnel 事件通知",
+      "ssl": true
+    }
+  }
+}

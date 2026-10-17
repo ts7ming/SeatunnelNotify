@@ -63,8 +63,8 @@ public class MessageBuilderTest {
         return ctx;
     }
 
-    private static NotifyConfig config(String yaml) {
-        return NotifyConfig.fromYaml(yaml.getBytes(StandardCharsets.UTF_8));
+    private static NotifyConfig config(String json) {
+        return NotifyConfig.fromJson(json.getBytes(StandardCharsets.UTF_8));
     }
 
     // ---------------------------------------------------------------- 默认文案
@@ -145,12 +145,11 @@ public class MessageBuilderTest {
     @Test
     public void build_customJobTemplate() {
         NotifyConfig cfg = config(
-                "enabled: true\n"
-                        + "events:\n"
-                        + "  job_status:\n"
-                        + "    enabled: true\n"
-                        + "    title: \"【任务{job_status}】{job_name}\"\n"
-                        + "    content: \"type={event_type} id={job_id} name={job_name} status={job_status} time={time}\"\n");
+                "{\"enabled\": true, \"events\": {\"job_status\": {"
+                        + "\"enabled\": true,"
+                        + "\"title\": \"【任务{job_status}】{job_name}\","
+                        + "\"content\": \"type={event_type} id={job_id} name={job_name}"
+                        + " status={job_status} time={time}\"}}}");
 
         NotifyMessage msg = MessageBuilder.build(jobCtx("FAILED"), cfg);
 
@@ -161,14 +160,26 @@ public class MessageBuilderTest {
     }
 
     @Test
+    public void build_templateWithNewline() {
+        // JSON 字符串中的 \n 转义解析为真实换行, 渲染后保留
+        NotifyConfig cfg = config(
+                "{\"enabled\": true, \"events\": {\"job_status\": {"
+                        + "\"enabled\": true,"
+                        + "\"title\": \"【任务{job_status}】\","
+                        + "\"content\": \"事件类型: {event_type}\\n任务ID: {job_id}\\n状态: {job_status}\"}}}");
+
+        NotifyMessage msg = MessageBuilder.build(jobCtx("FAILED"), cfg);
+
+        assertEquals("事件类型: JOB_STATUS\n任务ID: 9527\n状态: FAILED", msg.getContent());
+    }
+
+    @Test
     public void build_customSchemaTemplate() {
         NotifyConfig cfg = config(
-                "enabled: true\n"
-                        + "events:\n"
-                        + "  schema_change:\n"
-                        + "    enabled: true\n"
-                        + "    title: \"表 {table} 发生变更\"\n"
-                        + "    content: \"table_name={table_name} raw={raw}\"\n");
+                "{\"enabled\": true, \"events\": {\"schema_change\": {"
+                        + "\"enabled\": true,"
+                        + "\"title\": \"表 {table} 发生变更\","
+                        + "\"content\": \"table_name={table_name} raw={raw}\"}}}");
 
         NotifyMessage msg = MessageBuilder.build(schemaCtx(), cfg);
 
@@ -181,12 +192,8 @@ public class MessageBuilderTest {
     public void build_blankTemplateFallsBackToDefault() {
         // title/content 为空串时回退到内置默认文案
         NotifyConfig cfg = config(
-                "enabled: true\n"
-                        + "events:\n"
-                        + "  job_status:\n"
-                        + "    enabled: true\n"
-                        + "    title: \"\"\n"
-                        + "    content: \"\"\n");
+                "{\"enabled\": true, \"events\": {\"job_status\": {"
+                        + "\"enabled\": true, \"title\": \"\", \"content\": \"\"}}}");
 
         NotifyMessage msg = MessageBuilder.build(jobCtx("FAILED"), cfg);
 
@@ -197,12 +204,10 @@ public class MessageBuilderTest {
     @Test
     public void build_customTemplateForOtherCategory() {
         NotifyConfig cfg = config(
-                "enabled: true\n"
-                        + "events:\n"
-                        + "  others:\n"
-                        + "    enabled: true\n"
-                        + "    title: \"其他[{event_type}]\"\n"
-                        + "    content: \"time={time}\"\n");
+                "{\"enabled\": true, \"events\": {\"others\": {"
+                        + "\"enabled\": true,"
+                        + "\"title\": \"其他[{event_type}]\","
+                        + "\"content\": \"time={time}\"}}}");
 
         NotifyMessage msg = MessageBuilder.build(otherCtx(), cfg);
 
